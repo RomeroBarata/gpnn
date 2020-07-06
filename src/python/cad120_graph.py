@@ -46,7 +46,10 @@ def main(args):
 
     # Get data size and define model
     edge_features, node_features, adj_mat, node_labels, sequence_id = training_set[0]
-    model = units.LinkFunction('GraphConvLSTM', {'edge_feature_size': edge_features.shape[0], 'link_hidden_size': 1024, 'link_hidden_layers': 2})
+    model = units.LinkFunction('GraphConvLSTM',
+                               {'edge_feature_size': edge_features.shape[0],
+                                'link_hidden_size': 1024,
+                                'link_hidden_layers': 2})
     # model = units.LinkFunction('GraphConv', {'edge_feature_size': edge_features.shape[0], 'link_hidden_size': 1024, 'link_hidden_layers': 3})
     del edge_features, node_features, adj_mat, node_labels
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

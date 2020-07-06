@@ -220,12 +220,12 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
         confusion_matrix = sklearn.metrics.confusion_matrix(subact_ground_truth, subact_predictions,
                                                             labels=range(len(datasets.cad_metadata.subactivities)))
         utils.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities, normalize=True, title='',
-                              filename=os.path.join(result_folder, 'confusion_subactivity.pdf'))
+                                    filename=os.path.join(result_folder, 'confusion_subactivity.pdf'))
 
         confusion_matrix = sklearn.metrics.confusion_matrix(affordance_ground_truth, affordance_predictions,
                                                             labels=range(len(datasets.cad_metadata.affordances)))
         utils.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.affordances, normalize=True, title='',
-                              filename=os.path.join(result_folder, 'confusion_affordance.pdf'))
+                                    filename=os.path.join(result_folder, 'confusion_affordance.pdf'))
 
     subact_micro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions, labels=range(10), average='micro')
     subact_macro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions, labels=range(10), average='macro')
@@ -250,7 +250,7 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
 
     # return error_ratio.avg
     # return subactivity_error_ratio.avg+affordance_error_ratio.avg
-    return 2.0-(subact_macro_result[2] + aff_macro_result[2])
+    return 2.0 - (subact_macro_result[2] + aff_macro_result[2])
     # return 1.0 - aff_macro_result[2]
 
 

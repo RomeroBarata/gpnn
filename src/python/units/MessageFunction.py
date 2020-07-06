@@ -99,13 +99,15 @@ class MessageFunction(torch.nn.Module):
             message = message.cuda()
 
         for i_node in range(e_vw.size()[2]):
-            message[:, :, i_node] = torch.cat([self.learn_modules[0](e_vw[:, :, i_node]), self.learn_modules[1](h_w[:, :, i_node])], 1)
+            message[:, :, i_node] = torch.cat([self.learn_modules[0](e_vw[:, :, i_node]),
+                                               self.learn_modules[1](h_w[:, :, i_node])],
+                                              dim=1)
         return message
 
     def init_linear_concat(self):
         edge_feature_size = self.args['edge_feature_size']
         node_feature_size = self.args['node_feature_size']
-        message_size = self.args['message_size']/2
+        message_size = self.args['message_size'] / 2
         self.learn_modules.append(torch.nn.Linear(edge_feature_size, message_size, bias=True))
         self.learn_modules.append(torch.nn.Linear(node_feature_size, message_size, bias=True))
 

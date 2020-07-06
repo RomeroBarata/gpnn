@@ -15,10 +15,11 @@ import torch
 
 
 def collate_fn_cad(batch):
+    max_node_num = np.max(np.array([[adj_mat.shape[0]]
+                                    for (edge_features, node_features, adj_mat, node_labels, sequence_id) in batch]))
     edge_features, node_features, adj_mat, node_labels, sequence_id = batch[0]
-    max_node_num = np.max(np.array([[adj_mat.shape[0]] for (edge_features, node_features, adj_mat, node_labels, sequence_id) in batch]))
-    edge_feature_len = edge_features.shape[0]
-    node_feature_len = node_features.shape[0]
+    edge_feature_len = edge_features.shape[0]  # 800
+    node_feature_len = node_features.shape[0]  # 810
     node_label_dim = node_labels.ndim
     if node_label_dim > 1:
         node_label_len = node_labels.shape[1]

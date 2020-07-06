@@ -79,7 +79,7 @@ class LinkFunction(torch.nn.Module):
     def l_graph_conv_lstm(self, edge_features):
         last_layer_output = self.ConvLSTM(edge_features)
 
-        for layer in self.learn_modules:
+        for layer in self.learn_modules:  # Conv2d followed by Sigmoid
             last_layer_output = layer(last_layer_output)
         return last_layer_output[:, 0, :, :]
 

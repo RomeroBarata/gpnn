@@ -32,9 +32,10 @@ def to_variable(v, use_cuda):
 
 
 def get_cad_data(args, prediction=False):
+    # sequence_ids is a list of strings of length 125 (shouldn't it be 120?)
     sequence_ids = pickle.load(open(os.path.join(args.tmp_root, 'cad120', 'cad120_data_list.p'), 'rb'))
     train_num, val_num, test_num = 80, 20, 25
-    sequence_ids = np.random.permutation(sequence_ids)
+    sequence_ids = np.random.permutation(sequence_ids)  # Train, val, and test splits are random.
 
     if prediction:
         data_path = os.path.join(args.tmp_root, 'cad120', 'cad120_data_prediction.p')
@@ -54,7 +55,9 @@ def get_cad_data(args, prediction=False):
     test_loader = torch.utils.data.DataLoader(testing_set, collate_fn=datasets.utils.collate_fn_cad,
                                               batch_size=args.batch_size,
                                               num_workers=args.prefetch, pin_memory=True)
-    print('Dataset sizes: {} training, {} validation, {} testing.'.format(len(train_loader), len(valid_loader), len(test_loader)))
+    print('Dataset sizes: {} training, {} validation, {} testing.'.format(len(train_loader),
+                                                                          len(valid_loader),
+                                                                          len(test_loader)))
     return training_set, valid_set, testing_set, train_loader, valid_loader, test_loader
 
 

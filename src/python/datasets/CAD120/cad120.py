@@ -44,8 +44,12 @@ class CAD120(torch.utils.data.Dataset):
         one_hot_node_labels = np.zeros((node_num, self.max_node_label_len))
         for v in range(node_num):
             one_hot_node_labels[v, node_labels[v]] = 1
-
-        return np.transpose(edge_features, (2, 0, 1)), np.transpose(node_features, (1, 0)), adj_mat, one_hot_node_labels, self.sequence_ids[index]
+        output = (np.transpose(edge_features, (2, 0, 1)),  # (n, n, 800) -> (800, n, n)
+                  np.transpose(node_features, (1, 0)),  # (810, n)
+                  adj_mat,  # (n, n)
+                  one_hot_node_labels,  # (n, 12)
+                  self.sequence_ids[index])
+        return output
 
     def __len__(self):
         return len(self.data)

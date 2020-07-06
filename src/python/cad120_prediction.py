@@ -58,16 +58,20 @@ def main(args):
     logger = logutil.Logger(os.path.join(args.log_root, timestamp))
 
     # Load data
-    training_set, valid_set, testing_set, train_loader, valid_loader, test_loader = utils.get_cad_data(args, prediction=True)
+    (training_set, valid_set, testing_set,
+     train_loader, valid_loader, test_loader) = utils.get_cad_data(args, prediction=True)
 
     # Get data size and define model
     edge_features, node_features, adj_mat, node_labels, sequence_id = training_set[0]
     edge_feature_size, node_feature_size = edge_features.shape[0], node_features.shape[0]
-    model_args = {'model_path': args.resume, 'edge_feature_size': edge_feature_size, 'node_feature_size': node_feature_size, 'message_size': edge_feature_size, 'link_hidden_size': 1024, 'link_hidden_layers': 2, 'propagate_layers': 3, 'subactivity_classes': 10, 'affordance_classes': 12}
+    model_args = {'model_path': args.resume, 'edge_feature_size': edge_feature_size,
+                  'node_feature_size': node_feature_size, 'message_size': edge_feature_size,
+                  'link_hidden_size': 1024, 'link_hidden_layers': 2, 'propagate_layers': 3,
+                  'subactivity_classes': 10, 'affordance_classes': 12}
     model = models.GPNN_CAD(model_args)
     del edge_features, node_features, adj_mat, node_labels
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    criterion = torch.nn.MSELoss()
+    criterion = torch.nn.MSELoss()  # MSE? Shouldn't it be NLL?
     if args.cuda:
         model = model.cuda()
         criterion = criterion.cuda()
@@ -76,7 +80,7 @@ def main(args):
     if loaded_checkpoint:
         args, best_epoch_error, avg_epoch_error, model, optimizer = loaded_checkpoint
 
-    epoch_errors = list()
+    epoch_errors = list()  # Validation errors
     avg_epoch_error = np.inf
     best_epoch_error = np.inf
     for epoch in range(args.start_epoch, args.epochs):
@@ -88,7 +92,7 @@ def main(args):
         epoch_error = validate(valid_loader, model, criterion, logger, args=args)
 
         epoch_errors.append(epoch_error)
-        if len(epoch_errors) == 10:
+        if len(epoch_errors) == 10:  # This makes no sense
             new_avg_epoch_error = np.mean(np.array(epoch_errors))
             if avg_epoch_error - new_avg_epoch_error < 0.01:
                 pass
@@ -141,9 +145,11 @@ def train(train_loader, model, criterion, optimizer, epoch, logger, args=None):
 
         # Log
         losses.update(train_loss.data[0], edge_features.size(0))
-        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, [0], :], node_labels[:, [0], :])
+        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, [0], :],
+                                                                        node_labels[:, [0], :])
         subactivity_error_ratio.update(error_rate, total_nodes)
-        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, 1:, :], node_labels[:, 1:, :])
+        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, 1:, :],
+                                                                        node_labels[:, 1:, :])
         affordance_error_ratio.update(error_rate, total_nodes)
 
         train_loss.backward()
@@ -197,11 +203,13 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
         losses.update(criterion(pred_node_labels, node_labels).data[0], edge_features.size(0))
         error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels, node_labels)
         error_ratio.update(error_rate, total_nodes)
-        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, [0], :], node_labels[:, [0], :])
+        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, [0], :],
+                                                                        node_labels[:, [0], :])
         subactivity_error_ratio.update(error_rate, total_nodes)
         subact_predictions.extend(predictions)
         subact_ground_truth.extend(ground_truth)
-        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, 1:, :], node_labels[:, 1:, :])
+        error_rate, total_nodes, predictions, ground_truth = evaluation(pred_node_labels[:, 1:, :],
+                                                                        node_labels[:, 1:, :])
         affordance_error_ratio.update(error_rate, total_nodes)
         affordance_predictions.extend(predictions)
         affordance_ground_truth.extend(ground_truth)
@@ -214,23 +222,28 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
 
     if args.visualize:
         utils.plot_all_activity_segmentations(all_sequence_ids, subact_predictions, subact_ground_truth, result_folder)
-        utils.plot_all_affordance_segmentations(all_sequence_ids, all_node_nums, affordance_predictions, affordance_ground_truth, result_folder)
+        utils.plot_all_affordance_segmentations(all_sequence_ids, all_node_nums, affordance_predictions,
+                                                affordance_ground_truth, result_folder)
 
         # Plot confusion matrices
         confusion_matrix = sklearn.metrics.confusion_matrix(subact_ground_truth, subact_predictions,
                                                             labels=range(len(datasets.cad_metadata.subactivities)))
         utils.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities, normalize=True, title='',
-                              filename=os.path.join(result_folder, 'confusion_subactivity.pdf'))
+                                    filename=os.path.join(result_folder, 'confusion_subactivity.pdf'))
 
         confusion_matrix = sklearn.metrics.confusion_matrix(affordance_ground_truth, affordance_predictions,
                                                             labels=range(len(datasets.cad_metadata.affordances)))
         utils.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.affordances, normalize=True, title='',
-                              filename=os.path.join(result_folder, 'confusion_affordance.pdf'))
+                                    filename=os.path.join(result_folder, 'confusion_affordance.pdf'))
 
-    subact_micro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions, labels=range(10), average='micro')
-    subact_macro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions, labels=range(10), average='macro')
-    aff_micro_result = sklearn.metrics.precision_recall_fscore_support(affordance_ground_truth, affordance_predictions, labels=range(12), average='micro')
-    aff_macro_result = sklearn.metrics.precision_recall_fscore_support(affordance_ground_truth, affordance_predictions, labels=range(12), average='macro')
+    subact_micro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions,
+                                                                          labels=range(10), average='micro')
+    subact_macro_result = sklearn.metrics.precision_recall_fscore_support(subact_ground_truth, subact_predictions,
+                                                                          labels=range(10), average='macro')
+    aff_micro_result = sklearn.metrics.precision_recall_fscore_support(affordance_ground_truth, affordance_predictions,
+                                                                       labels=range(12), average='micro')
+    aff_macro_result = sklearn.metrics.precision_recall_fscore_support(affordance_ground_truth, affordance_predictions,
+                                                                       labels=range(12), average='macro')
     if test:
         print('Subactivity prediction micro evaluation:', subact_micro_result)
         print('Subactivity prediction macro evaluation:', subact_macro_result)
@@ -239,7 +252,8 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
 
     print(' * Avg Subactivity Error Ratio {act_err.avg:.3f}; Avg Affordance Error Ratio {aff_err.avg:.3f}; Average Loss {loss.avg:.3f}'
           .format(act_err=subactivity_error_ratio, aff_err=affordance_error_ratio, loss=losses))
-    print(' * Subactivity F1 Score {:.3f}; Affordance F1 Score {:.3f};'.format(subact_macro_result[2], aff_macro_result[2]))
+    print(' * Subactivity F1 Score {:.3f}; Affordance F1 Score {:.3f};'.format(subact_macro_result[2],
+                                                                               aff_macro_result[2]))
 
     if logger is not None:
         logger.log_value('test_epoch_loss', losses.avg)
@@ -250,7 +264,7 @@ def validate(val_loader, model, criterion, logger=None, args=None, test=False):
 
     # return error_ratio.avg
     # return subactivity_error_ratio.avg+affordance_error_ratio.avg
-    return 2.0-(subact_macro_result[2] + aff_macro_result[2])
+    return 2.0 - (subact_macro_result[2] + aff_macro_result[2])  # What does this mean?
     # return 1.0 - aff_macro_result[2]
 
 
@@ -259,7 +273,7 @@ def parse_arguments():
     def restricted_float(x, inter):
         x = float(x)
         if x < inter[0] or x > inter[1]:
-            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]"%(x,))
+            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]" % (x,))
         return x
 
     paths = config.Paths()
@@ -269,7 +283,8 @@ def parse_arguments():
     parser.add_argument('--project-root', default=paths.project_root, help='intermediate result path')
     parser.add_argument('--tmp-root', default=paths.tmp_root, help='intermediate result path')
     parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/prediction'), help='log files path')
-    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/prediction'), help='path to latest checkpoint')
+    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/prediction'),
+                        help='path to latest checkpoint')
     parser.add_argument('--visualize', action='store_true', default=True, help='Visualize final results')
 
     # Optimization Options

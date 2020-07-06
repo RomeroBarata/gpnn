@@ -35,10 +35,11 @@ def read_features(segments_feature_path, filename):
         object_object_num = int(first_line.split(' ')[1])
         skeleton_object_num = int(first_line.split(' ')[2])
 
-        edge_features = np.zeros((1+object_num, 1+object_num, 800))
-        node_features = np.zeros((1+object_num, 810))
-        adj_mat = np.zeros((1+object_num, 1+object_num)) if segment_index == 1 else np.eye(1+object_num)
-        node_labels = np.ones((1+object_num)) * -1
+        # "Node 0" is the skeleton
+        edge_features = np.zeros((1 + object_num, 1 + object_num, 800))
+        node_features = np.zeros((1 + object_num, 810))
+        adj_mat = np.zeros((1 + object_num, 1 + object_num)) if segment_index == 1 else np.eye(1 + object_num)
+        node_labels = np.ones((1 + object_num)) * -1
 
         stationary_index = metadata.affordance_index['stationary']
         null_index = metadata.subactivity_index['null']
@@ -49,12 +50,14 @@ def read_features(segments_feature_path, filename):
             colon_seperated = [x.strip() for x in line.strip().split(' ')]
             o_id = int(colon_seperated[1])
             node_labels[o_id] = int(colon_seperated[0]) - 1
+            # For nodes other than the skeleton, the first 630 features are always zero
             node_features[o_id, 630:] = np.array(parse_colon_seperated_features(colon_seperated[2:]))
 
         # Skeleton feature
         line = f.readline()
         colon_seperated = [x.strip() for x in line.strip().split(' ')]
         node_labels[0] = int(colon_seperated[0]) - 1
+        # There is a bug later as the authors set node_features[0, 600:760] = skeleton_skeleton_temporal_features
         node_features[0, :630] = parse_colon_seperated_features(colon_seperated[2:])
 
         # Object-object feature
@@ -63,6 +66,7 @@ def read_features(segments_feature_path, filename):
             colon_seperated = [x.strip() for x in line.strip().split(' ')]
             o1_id, o2_id = int(colon_seperated[2]), int(colon_seperated[3])
 
+            # Why don't they also set adj_mat[o2_id, o1_id] = 1? Same question for the edge_features.
             if int(node_labels[o1_id]) != stationary_index and int(node_labels[o2_id]) != stationary_index:
                 adj_mat[o1_id, o2_id] = 1
             edge_features[o1_id, o2_id, 400:600] = parse_colon_seperated_features(colon_seperated[4:])
@@ -72,6 +76,7 @@ def read_features(segments_feature_path, filename):
             line = f.readline()
             colon_seperated = [x.strip() for x in line.strip().split(' ')]
             s_o_id = int(colon_seperated[2])
+            # Here they set the symmetric features, unlike in the object-object case.
             edge_features[0, s_o_id, :400] = parse_colon_seperated_features(colon_seperated[3:])
             edge_features[s_o_id, 0, :400] = edge_features[0, s_o_id, :400]
 
@@ -84,7 +89,9 @@ def read_features(segments_feature_path, filename):
         for node_i in range(edge_features.shape[0]):
             edge_features[node_i, node_i, 600:] = 0
     else:
-        with open(os.path.join(segments_feature_path, '{}_{}_{}.txt'.format(sequence_id, segment_index-1, segment_index)), 'r') as f:
+        temporal_segment_file = os.path.join(segments_feature_path,
+                                             '{}_{}_{}.txt'.format(sequence_id, segment_index - 1, segment_index))
+        with open(temporal_segment_file, 'r') as f:
             first_line = f.readline().strip()
             object_object_num = int(first_line.split(' ')[0])
             skeleton_skeleton_num = int(first_line.split(' ')[1])
@@ -100,6 +107,7 @@ def read_features(segments_feature_path, filename):
             # Skeleton-object temporal feature
             line = f.readline()
             colon_seperated = [x.strip() for x in line.strip().split(' ')]
+            # This is wrong, why not 630:790? Actually, it should probably be edge_features[0, 0, 600:760].
             node_features[0, 600:760] = parse_colon_seperated_features(colon_seperated[3:])
 
     # Return data as a dictionary
@@ -114,8 +122,12 @@ def read_features(segments_feature_path, filename):
 def collect_data(paths):
     if not os.path.exists(paths.tmp_root):
         os.makedirs(paths.tmp_root)
-    segments_files_path = os.path.join(paths.data_root, 'features_cad120_ground_truth_segmentation', 'segments_svm_format')
-    segments_feature_path = os.path.join(paths.data_root, 'features_cad120_ground_truth_segmentation', 'features_binary_svm_format')
+    segments_files_path = os.path.join(paths.data_root,
+                                       'features',
+                                       'segments_svm_format')
+    segments_feature_path = os.path.join(paths.data_root,
+                                         'features',
+                                         'features_binary_svm_format')
 
     data = dict()
     sequence_ids = list()
@@ -132,15 +144,18 @@ def collect_data(paths):
             segment_feature_num = int(first_line.split(' ')[0])
             lines = f.readlines()
 
-            for segment_i in range(segment_feature_num-1):
+            for segment_i in range(segment_feature_num - 1):
                 current_segment_feature_filename = lines[segment_i].strip()
-                next_segment_feature_filename = lines[segment_i+1].strip()
-                current_segment_data = read_features(segments_feature_path, os.path.join(segments_feature_path, os.path.basename(current_segment_feature_filename)))
-                next_segment_data = read_features(segments_feature_path, os.path.join(segments_feature_path, os.path.basename(next_segment_feature_filename)))
+                next_segment_feature_filename = lines[segment_i + 1].strip()
+                current_segment_data = read_features(segments_feature_path,
+                                                     os.path.join(segments_feature_path,
+                                                                  os.path.basename(current_segment_feature_filename)))
+                next_segment_data = read_features(segments_feature_path,
+                                                  os.path.join(segments_feature_path,
+                                                               os.path.basename(next_segment_feature_filename)))
                 current_segment_data['node_labels'] = next_segment_data['node_labels']
                 data[sequence_id].append(current_segment_data)
-
-    pickle.dump(data, open(os.path.join(paths.tmp_root, 'cad120_data_prediction.p'), 'wb'))
+    # pickle.dump(data, open(os.path.join(paths.tmp_root, 'cad120_data_prediction.p'), 'wb'))
     # pickle.dump(sequence_ids, open(os.path.join(paths.tmp_root, 'cad120_data_list.p'), 'wb'))
 
 

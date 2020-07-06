@@ -114,8 +114,8 @@ def read_features(segments_feature_path, filename):
 def collect_data(paths):
     if not os.path.exists(paths.tmp_root):
         os.makedirs(paths.tmp_root)
-    segments_files_path = os.path.join(paths.data_root, 'features_cad120_ground_truth_segmentation', 'segments_svm_format')
-    segments_feature_path = os.path.join(paths.data_root, 'features_cad120_ground_truth_segmentation', 'features_binary_svm_format')
+    segments_files_path = os.path.join(paths.data_root, 'features', 'segments_svm_format')
+    segments_feature_path = os.path.join(paths.data_root, 'features', 'features_binary_svm_format')
 
     data = dict()
     sequence_ids = list()
@@ -135,7 +135,6 @@ def collect_data(paths):
                 segment_feature_filename = f.readline().strip()
                 segment_data = read_features(segments_feature_path, os.path.join(segments_feature_path, os.path.basename(segment_feature_filename)))
                 data[sequence_id].append(segment_data)
-
     pickle.dump(data, open(os.path.join(paths.tmp_root, 'cad120_data.p'), 'wb'))
     pickle.dump(sequence_ids, open(os.path.join(paths.tmp_root, 'cad120_data_list.p'), 'wb'))
 

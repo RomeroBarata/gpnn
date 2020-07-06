@@ -111,6 +111,3 @@ class ConvLSTM(nn.Module):
 
     def _reset_hidden_states(self):
         self.prev_states = [None for _ in range(self.hidden_layer_num)]
-
-
-

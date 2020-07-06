@@ -23,6 +23,7 @@ class GPNN_CAD(torch.nn.Module):
         self.link_fun = units.LinkFunction('GraphConvLSTM', model_args)
         self.message_fun = units.MessageFunction('linear_concat', model_args)
 
+        # A GRU for human node and a GRU for object nodes
         self.update_funs = torch.nn.ModuleList([])
         self.update_funs.append(units.UpdateFunction('gru', model_args))
         self.update_funs.append(units.UpdateFunction('gru', model_args))
@@ -30,8 +31,12 @@ class GPNN_CAD(torch.nn.Module):
         self.subactivity_classes = model_args['subactivity_classes']
         self.affordance_classes = model_args['affordance_classes']
         self.readout_funs = torch.nn.ModuleList([])
-        self.readout_funs.append(units.ReadoutFunction('fc_soft_max', {'readout_input_size': model_args['node_feature_size'], 'output_classes': self.subactivity_classes}))
-        self.readout_funs.append(units.ReadoutFunction('fc_soft_max', {'readout_input_size': model_args['node_feature_size'], 'output_classes': self.affordance_classes}))
+        self.readout_funs.append(units.ReadoutFunction('fc_soft_max',
+                                                       {'readout_input_size': model_args['node_feature_size'],
+                                                        'output_classes': self.subactivity_classes}))
+        self.readout_funs.append(units.ReadoutFunction('fc_soft_max',
+                                                       {'readout_input_size': model_args['node_feature_size'],
+                                                        'output_classes': self.affordance_classes}))
 
         self.propagate_layers = model_args['propagate_layers']
 
@@ -62,7 +67,7 @@ class GPNN_CAD(torch.nn.Module):
 
                 # Sum up messages from different nodes according to weights
                 m_v = pred_adj_mat[:, i_node, :].unsqueeze(1).expand_as(m_v) * m_v
-                hidden_edge_states[passing_round+1][:, :, :, i_node] = m_v
+                hidden_edge_states[passing_round + 1][:, :, :, i_node] = m_v
                 m_v = torch.sum(m_v, 2)
                 if i_node == 0:
                     h_v = self.update_funs[0](h_v[None].contiguous(), m_v[None])
