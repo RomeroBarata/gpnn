@@ -61,6 +61,57 @@ def get_cad_data(args, prediction=False):
     return training_set, valid_set, testing_set, train_loader, valid_loader, test_loader
 
 
+def read_dictionary(filepath):
+    """Read a dictionary from a file, where each file line is in the format 'key value'."""
+    d = {}
+    with open(filepath, mode='r') as f:
+        for line in f:
+            k, v = line.strip().split(' ')
+            d[k] = v
+    return d
+
+
+def get_cad_cv_data(args, prediction=False):
+    # sequence_ids is a list of strings of length 125 (shouldn't it be 120?)
+    sequence_ids = pickle.load(open(os.path.join(args.tmp_root, 'cad120', 'cad120_data_list.p'), 'rb'))
+    id2subject = read_dictionary('/home/romero/data/CAD-120/dictionaries/video-id_to_subject.txt')
+    test_subject_id = args.test_subject_id
+    train_sequence, test_sequence = [], []
+    for video_id in sequence_ids:
+        current_id = id2subject.get(video_id)
+        if current_id is None:
+            continue
+        if test_subject_id == current_id:
+            test_sequence.append(video_id)
+        else:
+            train_sequence.append(video_id)
+    train_sequence = np.random.permutation(train_sequence)
+    train_num = int(round(0.9 * len(train_sequence)))
+
+    if prediction:
+        data_path = os.path.join(args.tmp_root, 'cad120', 'cad120_data_prediction.p')
+    else:
+        data_path = os.path.join(args.tmp_root, 'cad120', 'cad120_data.p')
+
+    training_set = datasets.CAD120(data_path, train_sequence[:train_num])
+    valid_set = datasets.CAD120(data_path, train_sequence[train_num:])
+    testing_set = datasets.CAD120(data_path, test_sequence)
+
+    train_loader = torch.utils.data.DataLoader(training_set, collate_fn=datasets.utils.collate_fn_cad,
+                                               batch_size=args.batch_size,
+                                               num_workers=args.prefetch, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(valid_set, collate_fn=datasets.utils.collate_fn_cad,
+                                               batch_size=args.batch_size,
+                                               num_workers=args.prefetch, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(testing_set, collate_fn=datasets.utils.collate_fn_cad,
+                                              batch_size=args.batch_size,
+                                              num_workers=args.prefetch, pin_memory=True)
+    print('Dataset sizes: {} training, {} validation, {} testing.'.format(len(train_loader),
+                                                                          len(valid_loader),
+                                                                          len(test_loader)))
+    return training_set, valid_set, testing_set, train_loader, valid_loader, test_loader
+
+
 def get_label_bar(labels, height=10, width=50):
     label_bar = np.empty((height, width*len(labels)))
     for i, label in enumerate(labels):
@@ -100,7 +151,10 @@ def plot_all_activity_segmentations(all_sequence_ids, subact_predictions, subact
     for i, sequence_id in enumerate(all_sequence_ids):
         if sequence_id != last_sequence_id:
             if len(seq_subact_pred) > 0:
-                plot_segmentation([seq_subact_gt, seq_subact_pred], classes=datasets.cad_metadata.subactivities, save_path=os.path.join(result_folder, '{}_action.png'.format(last_sequence_id)))
+                save_path = os.path.join(result_folder, '{}_action.png'.format(last_sequence_id))
+                plot_segmentation([seq_subact_gt, seq_subact_pred],
+                                  classes=datasets.cad_metadata.subactivities,
+                                  save_path=save_path)
             last_sequence_id = sequence_id
             seq_subact_pred = list()
             seq_subact_gt = list()
@@ -108,8 +162,9 @@ def plot_all_activity_segmentations(all_sequence_ids, subact_predictions, subact
         seq_subact_gt.append(subact_ground_truth[i])
 
     if len(seq_subact_pred) > 0:
+        save_path = os.path.join(result_folder, '{}_action.png'.format(last_sequence_id))
         plot_segmentation([seq_subact_gt, seq_subact_pred], classes=datasets.cad_metadata.subactivities,
-                          save_path=os.path.join(result_folder, '{}_action.png'.format(last_sequence_id)))
+                          save_path=save_path)
 
 
 def plot_all_affordance_segmentations(all_sequence_ids, all_node_nums, aff_predictions, aff_ground_truth, result_folder):

@@ -58,7 +58,8 @@ def main(args):
     logger = logutil.Logger(os.path.join(args.log_root, timestamp))
 
     # Load data
-    training_set, valid_set, testing_set, train_loader, valid_loader, test_loader = utils.get_cad_data(args)
+    # training_set, valid_set, testing_set, train_loader, valid_loader, test_loader = utils.get_cad_data(args)
+    training_set, valid_set, testing_set, train_loader, valid_loader, test_loader = utils.get_cad_cv_data(args)
 
     # Get data size and define model
     edge_features, node_features, adj_mat, node_labels, sequence_id = training_set[0]
@@ -269,19 +270,21 @@ def parse_arguments():
     parser.add_argument('--project-root', default=paths.project_root, help='intermediate result path')
     parser.add_argument('--tmp-root', default=paths.tmp_root, help='intermediate result path')
     parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/parsing'), help='log files path')
-    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/parsing'), help='path to latest checkpoint')
-    parser.add_argument('--visualize', action='store_true', default=True, help='Visualize final results')
+    # parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/parsing'), help='path to latest checkpoint')
+    parser.add_argument('--resume', type=str, default=os.path.join(paths.tmp_root, 'checkpoints/cad120/parsing/fold4'), help='path to latest checkpoint or directory to create')
+    parser.add_argument('--visualize', action='store_true', default=False, help='Visualize final results')
+    parser.add_argument('--test_subject_id', type=str, default='Subject4')
 
     # Optimization Options
-    parser.add_argument('--batch-size', type=int, default=1, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                         help='Input batch size for training (default: 10)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='Enables CUDA training')
-    parser.add_argument('--epochs', type=int, default=0, metavar='N',
+    parser.add_argument('--epochs', type=int, default=30, metavar='N',
                         help='Number of epochs to train (default: 10)')
     parser.add_argument('--start-epoch', type=int, default=0, metavar='N',
                         help='Index of epoch to start (default: 0)')
-    parser.add_argument('--lr', type=lambda x: restricted_float(x, [1e-5, 1e-2]), default=5e-5, metavar='LR',
+    parser.add_argument('--lr', type=lambda x: restricted_float(x, [1e-5, 1e-2]), default=1e-3, metavar='LR',
                         help='Initial learning rate [1e-5, 1e-2] (default: 1e-3)')
     parser.add_argument('--lr-decay', type=lambda x: restricted_float(x, [.01, 1]), default=0.8, metavar='LR-DECAY',
                         help='Learning rate decay factor [.01, 1] (default: 0.8)')
